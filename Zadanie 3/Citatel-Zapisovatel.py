@@ -38,7 +38,7 @@ def reader(sh, range, i):
         if sh.stop:
             break
 
-        sleep(randint(0,10)/10)
+        sleep(randint(0, 10)/10)
         sh.ls.lock()
         time = randint(range[0], range[1])/10
         sleep(time)
@@ -51,7 +51,7 @@ def writer(sh, range, i):
         if sh.stop:
             break
 
-        sleep(randint(0,10)/10)
+        sleep(randint(0, 10)/10)
         sh.sem.wait()
         time = randint(range[0], range[1])/10
         sleep(time)
@@ -59,28 +59,27 @@ def writer(sh, range, i):
         sh.sem.signal()
 
 
-readers_count = 10
-writers_count = 10
-reading_time = (0,5)
-writing_time = (0,10)
+readers_count = 10  # pocet citatelov
+writers_count = 10  # pocet zapisovatelov
+reading_time = (0, 5)  # rozsha od - do pre generator nahodnych cisiel
+writing_time = (0, 10)
+run_time = 10  # dlzka zivotnosti vlakien v sekundach
 
 sh = Shared()
 threads = list()
 
-start = time.time()
+
 for i in range(writers_count):
     threads.append(Thread(writer, sh, writing_time, i))
 
 for i in range(readers_count):
     threads.append(Thread(reader, sh, reading_time, i))
 
-x= time.time()
-while (x - start) < 20:
-    x= time.time()
+start = time.time()
+while (time.time() - start) < run_time: 
+    pass
 
 sh.stop = True
-    
+
 for i in threads:
     i.join()
-
-threads = list()
