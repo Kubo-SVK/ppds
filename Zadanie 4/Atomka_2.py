@@ -9,7 +9,7 @@ class Barrier():
         self.event = Event()
         self.counter = n
         self.n = n
-        
+
     def wait(self):
         self.mutex.lock()
         self.counter -= 1
@@ -20,8 +20,8 @@ class Barrier():
             return
         self.mutex.unlock()
         self.event.wait()
-    
-    
+
+
 class Lightswitch():
     def __init__(self):
         self.mutex = Mutex()
@@ -50,49 +50,60 @@ def init(x):
     ls_monitor = Lightswitch()
     ls_cidlo = Lightswitch()
     validData = Event()
-    barrier_1= Barrier(x)
-    barrier_2= Barrier(x)
-    
+    barrier_1 = Barrier(x)
+    barrier_2 = Barrier(x)
+
     for monitor_id in range(x):
-        Thread(monitor, monitor_id, turniket, validData, ls_monitor, accessData, barrier_1, barrier_2)
+        Thread(monitor, monitor_id, turniket, validData,
+               ls_monitor, accessData, barrier_1, barrier_2)
+
     for cidlo_id in range(2):
-        Thread(cidlo, cidlo_id, turniket, validData, ls_cidlo, accessData, [10, 20])
+        # Cidla P a T
+        Thread(cidlo, cidlo_id, turniket, validData,
+               ls_cidlo, accessData, [10, 20])
+
+    # Cidlo H
     Thread(cidlo, 2, turniket, validData, ls_cidlo, accessData, [20, 25])
- 
-def monitor(monitor_id, turniket, validData,ls_monitor, accessData, bar1, bar2):
+
+
+def monitor(monitor_id, turniket, validData,
+            ls_monitor, accessData, bar1, bar2):
+
     validData.wait()
+
     while True:
         bar1.wait()
         sleep(0.5)
- 
+
         turniket.wait()
         sleep(randint(40, 50) / 1000)
         pocet_citajucich_monitorov = ls_monitor.lock(accessData)
         turniket.signal()
-        print(f'monit "{monitor_id:02d}": pocet_citajucich_monitorov={pocet_citajucich_monitorov:02d}')
+        print(f'monit "{monitor_id:02d}": '
+              f'pocet_citajucich_monitorov={pocet_citajucich_monitorov:02d}')
         ls_monitor.unlock(accessData)
         bar2.wait()
 
- 
+
 def cidlo(cidlo_id, turniket, validData, ls_cidlo, accessData, wr):
     while True:
         sleep(randint(50, 60) / 1000)
-        
+
         turniket.wait()
         turniket.signal()
- 
+
         pocet_zapisujucich_cidiel = ls_cidlo.lock(accessData)
         trvanie_zapisu = randint(wr[0], wr[1])/1000
+        print(f'cidlo "{cidlo_id:02d}": '
+              f'pocet_zapisujucich_cidiel={pocet_zapisujucich_cidiel:02d}, '
+              f'trvanie_zapisu={trvanie_zapisu:0.3f}')
         sleep(trvanie_zapisu)
-        print(f'cidlo "{cidlo_id:02d}":  pocet_zapisujucich_cidiel={pocet_zapisujucich_cidiel:02d}, trvanie_zapisu={trvanie_zapisu:0.3f}')
-
         ls_cidlo.unlock(accessData)
 
         if(pocet_zapisujucich_cidiel == 2):
             validData.signal()
- 
- 
+
+
 monitor_count = 8
- 
+
 init(monitor_count)
- 
