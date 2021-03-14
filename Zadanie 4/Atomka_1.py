@@ -10,11 +10,12 @@ class Lightswitch():
 
     def lock(self, sem):
         self.mutex.lock()
+        counter = self.count
         self.count += 1
         if self.count == 1:
             sem.wait()
         self.mutex.unlock()
-        return self.count
+        return counter
 
     def unlock(self, sem):
         self.mutex.lock()
@@ -30,16 +31,13 @@ def init():
     ls_monitor = Lightswitch()
     ls_cidlo = Lightswitch()
     validData = Event()
-    threads = list()
  
  
     for monitor_id in range(2):
-        threads.append(Thread(monitor, monitor_id, turniket, validData, ls_monitor, accessData))
+        Thread(monitor, monitor_id, turniket, validData, ls_monitor, accessData)
     for cidlo_id in range(11):
-        threads.append(Thread(cidlo, cidlo_id, turniket, validData, ls_cidlo, accessData))
+        Thread(cidlo, cidlo_id, turniket, validData, ls_cidlo, accessData)
         
-    for th in threads:
-        th.join()
  
 def monitor(monitor_id, turniket, validData,ls_monitor, accessData):
     # monitor nemôže pracovať, kým nie je aspoň 1 platný údaj v úložisku
