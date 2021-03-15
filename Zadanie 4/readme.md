@@ -82,4 +82,4 @@ def cidlo(cidlo_id):
             validData.signal()
 ```
 
-_Pozn. Ja by som to lockovanie úložiska preskočil, keďže kaťdé čidlo má vyhradenú pamäť a monitory dáta len čítajú neupravujú_
+_Pozn. Ja by som to lockovanie úložiska preskočil, keďže každé čidlo má vyhradenú pamäť a monitory dáta len čítajú neupravujú. V tom prípade by si kód vyžiadol jemnú modifikáciu, keďže pri štarte spoliehame na to, že poec_zapisujucich_monitorov bude 2, čo znamená, že všetky 3 čísla. Avšak funkcionalitu, programu by to ovplyvniť nemalo. Môže jeho beh len zrýchliť, keďže vlákna by bežali plne konkurentne a čakali by len v prípade, že by v KO bol monitor._
