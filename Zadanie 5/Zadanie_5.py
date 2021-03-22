@@ -1,5 +1,3 @@
-"""Riesenie modifikovaneho problemu divochov."""
- 
 from fei.ppds import Semaphore, Mutex, Thread, print
 from random import randint
 from time import sleep
@@ -8,16 +6,14 @@ from time import sleep
 Preto ich nedavame do zdielaneho objektu.
     M - pocet porcii misionara, ktore sa zmestia do hrnca.
     N - pocet divochov v kmeni (kuchara nepocitame).
+    C - pocet kucharov
 """
-M = 2
-N = 3
+M = 10
+N = 5
+C = 3
  
  
 class SimpleBarrier:
-    """Vlastna implementacia bariery
-    kvoli specialnym vypisom vo funkcii wait().
-    """
- 
     def __init__(self, N):
         self.N = N
         self.mutex = Mutex()
@@ -43,29 +39,21 @@ class SimpleBarrier:
  
  
 class Shared:
-    """V tomto pripade musime pouzit zdielanu strukturu.
-    Kedze Python struktury nema, pouzijeme triedu bez vlastnych metod.
-    Preco musime pouzit strukturu? Lebo chceme zdielat hodnotu
-    pocitadla servings, a to jednoduchsie v Pythone asi neurobime.
-    Okrem toho je rozumne mat vsetky synchronizacne objekty spolu.
-    Pri zmene nemusime upravovat API kazdej funkcie zvlast.
-    """
- 
     def __init__(self):
         self.mutex = Mutex()
+        self.cooking = Mutex()
+        self.refill = Mutex()
         self.servings = 0
+        self.active_cooks = 0
+        self.cooks_done = 0
         self.full_pot = Semaphore(0)
         self.empty_pot = Semaphore(0)
         self.barrier1 = SimpleBarrier(N)
         self.barrier2 = SimpleBarrier(N)
+        self.pot_ready = Semaphore(0)
  
  
 def get_serving_from_pot(savage_id, shared):
-    """Pristupujeme ku zdielanej premennej.
-    Funkcia je volana pri zamknutom mutexe, preto netreba
-    riesit serializaciu v ramci samotnej funkcie.
-    """
- 
     print("divoch %2d: beriem si porciu" % savage_id)
     shared.servings -= 1
  
@@ -76,14 +64,9 @@ def eat(savage_id):
     sleep(0.2 + randint(0, 3) / 10)
  
  
-def savage(savage_id, shared):
+def savage(savage_id, C, shared):
     while True:
-        """Pred kazdou hostinou sa divosi musia pockat.
-        Kedze mame kod vlakna (divocha) v cykle, musime pouzit dve
-        jednoduche bariery za sebou alebo jednu zlozenu, ale kvoli
-        prehladnosti vypisov sme sa rozhodli pre toto riesenie.
-        """
- 
+
         shared.barrier1.wait(
             "divoch %2d: prisiel som na veceru, uz nas je %2d",
             savage_id,
@@ -97,8 +80,8 @@ def savage(savage_id, shared):
         print("divoch %2d: pocet zostavajucich porcii v hrnci je %2d" %
               (savage_id, shared.servings))
         if shared.servings == 0:
-            print("divoch %2d: budim kuchara" % savage_id)
-            shared.empty_pot.signal()
+            print(f'divoch {savage_id:2d} budim {C:2d} kucharov')
+            shared.empty_pot.signal(C)
             shared.full_pot.wait()
         get_serving_from_pot(savage_id, shared)
         shared.mutex.unlock()
@@ -106,44 +89,47 @@ def savage(savage_id, shared):
         eat(savage_id)
  
  
-def put_servings_in_pot(M, shared):
-    """M je pocet porcii, ktore vklada kuchar do hrnca.
-    Hrniec je reprezentovany zdielanou premennou servings.
-    Ta udrziava informaciu o tom, kolko porcii je v hrnci k dispozicii.
-    """
+def put_servings_in_pot(id, M, shared): 
+    while True:
+        shared.cooking.lock()
+        if(shared.active_cooks == M):
+            shared.cooking.unlock()
+            return
+        shared.active_cooks += 1
+        shared.cooking.unlock()
+        print(f'kuchar {id}: varim')
+        # navarenie jedla tiez cosi trva...
+        sleep(0.4 + randint(0, 2) / 10)
+        shared.servings += 1
  
-    print("kuchar: varim")
-    # navarenie jedla tiez cosi trva...
-    sleep(0.4 + randint(0, 2) / 10)
-    shared.servings += M
  
- 
-def cook(M, shared):
-    """Na strane kuchara netreba robit ziadne modifikacie kodu.
-    Riesenie je standardne podla prednasky.
-    Navyse je iba argument M, ktorym explicitne hovorime, kolko porcii
-    ktory kuchar vari.
-    Kedze v nasom modeli mame iba jedneho kuchara, ten navari vsetky
-    potrebne porcie a vlozi ich do hrnca.
-    """
- 
+def cook(id, M, C, shared):
     while True:
         shared.empty_pot.wait()
-        put_servings_in_pot(M, shared)
-        shared.full_pot.signal()
+        put_servings_in_pot(id, M, shared)
+        
+        shared.refill.lock()
+        print(f'kuchar {id}: hotovo')
+        shared.cooks_done += 1
+        if(shared.cooks_done == C):
+            shared.active_cooks = 0
+            shared.cooks_done = 0
+            shared.full_pot.signal()
+        shared.refill.unlock()
  
  
-def init_and_run(N, M):
-    """Spustenie modelu"""
+def init_and_run(N, M, C):
     threads = list()
     shared = Shared()
     for savage_id in range(0, N):
-        threads.append(Thread(savage, savage_id, shared))
-    threads.append(Thread(cook, M, shared))
+        threads.append(Thread(savage, savage_id, C, shared))
+    
+    for cook_id in range(0, C):
+        threads.append(Thread(cook, cook_id, M, C, shared))
  
     for t in threads:
         t.join()
  
  
 if __name__ == "__main__":
-    init_and_run(N, M)
+    init_and_run(N, M, C)
