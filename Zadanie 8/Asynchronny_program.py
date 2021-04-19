@@ -45,7 +45,7 @@ async def main():
     await asyncio.gather(
         task("Task 1", data, crypto_queue),
         task("Task 2", data, crypto_queue),
-        task("Task 2", data, crypto_queue)
+        task("Task 3", data, crypto_queue)
     )
     duration = time() - start
     
